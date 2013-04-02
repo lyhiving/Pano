@@ -14,62 +14,30 @@ CREATE  TABLE IF NOT EXISTS `mydb`.`scene` (
   `name` VARCHAR(45) NOT NULL ,
   `lat` DOUBLE NOT NULL ,
   `lng` DOUBLE NOT NULL ,
+  `pano` VARCHAR(45) NULL ,
   PRIMARY KEY (`id`) )
 ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `mydb`.`directions`
+-- Table `mydb`.`direction`
 -- -----------------------------------------------------
-CREATE  TABLE IF NOT EXISTS `mydb`.`directions` (
+CREATE  TABLE IF NOT EXISTS `mydb`.`direction` (
+  `id` INT NOT NULL AUTO_INCREMENT ,
+  `length` VARCHAR(45) NOT NULL ,
+  `scene_id` INT NOT NULL ,
   `scene_id1` INT NOT NULL ,
-  `scene_id2` INT NOT NULL ,
-  `id` INT NOT NULL ,
-  PRIMARY KEY (`scene_id1`, `scene_id2`, `id`) ,
-  INDEX `fk_directions_scene1_idx` (`scene_id2` ASC) ,
-  CONSTRAINT `fk_directions_scene`
+  PRIMARY KEY (`id`, `scene_id`, `scene_id1`) ,
+  INDEX `fk_direction_scene1_idx` (`scene_id` ASC) ,
+  INDEX `fk_direction_scene2_idx` (`scene_id1` ASC) ,
+  CONSTRAINT `fk_direction_scene1`
+    FOREIGN KEY (`scene_id` )
+    REFERENCES `mydb`.`scene` (`id` )
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  CONSTRAINT `fk_direction_scene2`
     FOREIGN KEY (`scene_id1` )
     REFERENCES `mydb`.`scene` (`id` )
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION,
-  CONSTRAINT `fk_directions_scene1`
-    FOREIGN KEY (`scene_id2` )
-    REFERENCES `mydb`.`scene` (`id` )
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION)
-ENGINE = InnoDB;
-
-
--- -----------------------------------------------------
--- Table `mydb`.`pano`
--- -----------------------------------------------------
-CREATE  TABLE IF NOT EXISTS `mydb`.`pano` (
-  `id` INT NOT NULL AUTO_INCREMENT ,
-  `path` VARCHAR(45) NOT NULL ,
-  `aesthetic` FLOAT NULL ,
-  PRIMARY KEY (`id`) )
-ENGINE = InnoDB;
-
-
--- -----------------------------------------------------
--- Table `mydb`.`pano_has_directions`
--- -----------------------------------------------------
-CREATE  TABLE IF NOT EXISTS `mydb`.`pano_has_directions` (
-  `pano_id` INT NOT NULL ,
-  `directions_scene_id` INT NOT NULL ,
-  `directions_scene_id1` INT NOT NULL ,
-  `directions_id` INT NOT NULL ,
-  PRIMARY KEY (`pano_id`, `directions_scene_id`, `directions_scene_id1`, `directions_id`) ,
-  INDEX `fk_pano_has_directions_directions1_idx` (`directions_scene_id` ASC, `directions_scene_id1` ASC, `directions_id` ASC) ,
-  INDEX `fk_pano_has_directions_pano1_idx` (`pano_id` ASC) ,
-  CONSTRAINT `fk_pano_has_directions_pano1`
-    FOREIGN KEY (`pano_id` )
-    REFERENCES `mydb`.`pano` (`id` )
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION,
-  CONSTRAINT `fk_pano_has_directions_directions1`
-    FOREIGN KEY (`directions_scene_id` , `directions_scene_id1` , `directions_id` )
-    REFERENCES `mydb`.`directions` (`scene_id1` , `scene_id2` , `id` )
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
