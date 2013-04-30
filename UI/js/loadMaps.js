@@ -11,8 +11,8 @@ function initialize()
 }
 function initializeMap(){
 	/*景区位置 */
-	scenes[0]=new google.maps.LatLng(26.5842960287014,114.145181179047);	
-	scenes[1]=new google.maps.LatLng(26.5839362324904,114.144923686981);
+	scenes[0]=new google.maps.LatLng(26.5862820834394,114.141924977303);	
+	scenes[1]=new google.maps.LatLng(26.5874717808881,114.141973257065);
 	scenes[2]=new google.maps.LatLng(26.5824442654713,114.145642518997);
 	
 	var defaultLocation=scenes[0];
@@ -40,6 +40,7 @@ function initializeMap(){
 		updateMarker(marker,i);
 		
 	}
+
 	
 }
 function updateMarker(marker,i)
@@ -59,9 +60,10 @@ function updateMarker(marker,i)
 }
 function getCustomPanoramaTileUrl(pano,zoom,tileX,tileY)
 {
+
 	switch(pano){
 		case 'longtan1':
-			return 'images\\img01.jpg';
+			return 'images\\img'+'-'+zoom+'.jpg';
 		case 'longtan2':
 			return 'images\\img02.jpg';
 		case 'longtan3':
@@ -73,7 +75,7 @@ function getCustomPanoramaTileUrl(pano,zoom,tileX,tileY)
 }
 function getCustomPanorama(pano,zoom,tileX,tileY)
 {
-	
+	alert("zoom:"+zoom);
 	switch(pano){
 		case 'longtan1':
 			return {
