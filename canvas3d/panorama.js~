@@ -18,7 +18,7 @@
 		convas.width=width;
 		convas.height=height;
 		context.drawImage(_image,0,0);
-		var imageData=context.getImageData(0,0,width,height);
+		var imageData=ctx.getImageData(0,0,width,height);
 		var tmpMat=new Mat(height,width,imageData.data);
 		imageData=null;
 		context.clearRect(0,0,width,height);
