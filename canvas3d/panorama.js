@@ -48,7 +48,7 @@
 		mt1[8]=mt1[4];
 		mt2[0]=Math.cos(_pan);
 		mt2[1]=0;
-		mt2[2]-Math.sin(_pan);
+		mt2[2]=-Math.sin(_pan);
 		mt2[3]=0;
 		mt2[4]=1;
 		mt2[5]=0;
@@ -80,7 +80,10 @@
 		imageData.data.set(_imgMat.data);
 		return imageData;
 	}
-
+	function backProjectionAlgorithm(_x,_y)
+	{
+		var delta=
+	}
 	function draw()
 	{
 		//transform view position to pan tilt angle;
@@ -114,6 +117,7 @@
 		//find correct position in panorama
 		var u=0,v=0;
 		var x=0,y=0,z=0;
+		var uMax=0;
 		var panoPos=new Float32Array(vheight*vwidth*2);
 		for(i=0;i!=vheight;i++)
 		{
@@ -122,17 +126,36 @@
 				x=view[(i*vwidth+j)*3+0];
 				y=view[(i*vwidth+j)*3+1];
 				z=view[(i*vwidth+j)*3+2];
+				if(Math.abs(z)<0.00001)
+				{
+					uMax=r*Math.atan(x/z);
+				}
 				u=r*Math.atan(x/z);
 				v=r*Math.atan(y/Math.sqrt(x*x+z*z));
-				u+=pwidth/2;
+				if(z>0)
+				{ 
+					u+=pwidth/2;
+				
+				}
+				else if(z<0)
+				{
+					if(uMax!=0)
+					{
+						u=uMax+(uMax+u);
+						u+=pwidth/2;
+					}
+					
+						
+				}
 				u--;
+				
 				v++;
 				v=pheight/2-v;
 				if(v>=pheight)
 				{
 					v=pheight-1;
 				}
-				if(v>=pwidth)
+				if(u>=pwidth)
 				{
 					u=pwidth-1;
 				}
@@ -186,7 +209,7 @@
 			  pwidth=0;
 			  pheight=0;
 			 fov=90;
-			 pan=90/180*Math.PI;
+			 pan=75*Math.PI/180;
 			 tilt=0;
 			
 			
@@ -203,11 +226,7 @@
 				pheight=panoImg.height;
 				srcMat=imread(panoImg);
 				draw();
-			}
-			panoImg.src="imgs\\village.jpg";
-			
-		
-			$(pano_element).bind('mousedown',function(){
+				$(pano_element).bind('mousedown',function(){
 				pano_mouse_down=true;
 				pano_mouse_position_x=e.clientX;
 				pano_mouse_position_y=e.clientY;
@@ -221,8 +240,14 @@
 				if(pano_mouse_down){
 					pano_mouse_delta_x=parseInt(pano_mouse_position_x-e.clientX);
 					pano_mouse_delta_y=parseInt(pano_mouse_position_y=e.clientY);
+					pan+=10*Math.PI/180;
 				}
 			});
+			}
+			panoImg.src="imgs\\village.jpg";
+			
+		
+		
 			
 			
 		});
