@@ -1,9 +1,11 @@
 (function($){
 	var canvas;
 	var context;
+	//рт╫г╤х 
 	var fov;
 	var tilt;
 	var pan;
+	//
 	var vwidth;
 	var vheight;
 	var pwidth;
@@ -41,14 +43,14 @@
 		mt1[1]=0;
 		mt1[2]=0;
 		mt1[3]=0;
-		mt1[4]=Math.cos(_tilt);
-		mt1[5]=Math.sin(_tilt);
+		mt1[4]=Math.cos(_tilt*Math.PI/180);
+		mt1[5]=Math.sin(_tilt*Math.PI/180);
 		mt1[6]=0;
 		mt1[7]=-mt1[5];
 		mt1[8]=mt1[4];
-		mt2[0]=Math.cos(_pan);
+		mt2[0]=Math.cos(_pan*Math.PI/180);
 		mt2[1]=0;
-		mt2[2]=-Math.sin(_pan);
+		mt2[2]=-Math.sin(_pan*Math.PI/180);
 		mt2[3]=0;
 		mt2[4]=1;
 		mt2[5]=0;
@@ -82,19 +84,93 @@
 	}
 	function backProjectionAlgorithm(_x,_y)
 	{
-		var delta=
+
+		var f=vwidth/(2*Math.tan(fov*Math.PI/360));
+		var a=tilt*Math.PI/180;
+		var b=pan*Math.PI/180;
+		var w=(_y-vheight/2)*Math.sin(a)*Math.cos(b)-(_x-vwidth/2)*Math.sin(b)-f*Math.cos(a)*Math.cos(b);
+		
+		var u=(_x-vwidth/2)*Math.cos(b)-f*Math.cos(a)*Math.sin(b);
+		var v=(_y-vheight/2)*Math.cos(a)+f*Math.sin(a);	
+		var sq=Math.sqrt(u*u+w*w);
+		var x1=0,y1=0;
+		if(w>=0)
+		{
+			x1=f*Math.acos(u/sq);
+			y1=f*(Math.PI/2-Math.atan(v/sq));
+		}
+		else if(w<0)
+		{
+			x1=f*(Math.PI*2-Math.acos(u/sq));
+			y1=f*(Math.PI/2-Math.atan(v/sq));
+		}
+		var  ad=new Array();
+		ad[0]=x1;
+		ad[1]=y1;
+		return ad;
+
+	}
+	function drawOne()
+	{
+		var imgMat=new Mat(vheight,vwidth);
+		var data=imgMat.data;
+		var srcData=srcMat.data;
+		var ti=0,tj=0;
+		var u=0,v=0;
+		var ad;
+		for(var i=0;i!=vheight;++i)
+		{
+			for(var j=0;j!=vwidth;++j)
+			{
+			
+				ti=-i+(vheight/2);
+				tj=j-(vwidth/2);
+				ti--;
+				ad=backProjectionAlgorithm(tj,ti);
+				u=parseInt(ad[0]);
+				v=parseInt(ad[1]);
+				
+				if(u>pwidth)
+				{
+					u-=pwidth;
+				}
+				if(u<0)
+				{
+					u+=pwidth;
+				}
+				if(srcData[(v*pwidth+u)*4]==0)
+				{
+						console.log("z");
+				}
+				for(var k=0;k!=4;++k)
+				{
+					data[(i*vwidth+j)*4+k]=srcData[(v*pwidth+u)*4+k];
+				}
+			}
+		}
+		var imgData=RGBA2ImageData(imgMat);
+		//draw on the canvas
+		context.clearRect(0,0,vwidth,vheight);
+		canvas.width=vwidth;
+		canvas.height=vheight;
+		canvas.style.width=vwidth;
+		canvas.style.height=vheight;
+		context.putImageData(imgData,0,0);	
+
 	}
 	function draw()
 	{
 		//transform view position to pan tilt angle;
+		
+
 		var i=0,j=0,k=0;
 		var mt=setMatrix(tilt,pan);
 
-		var r=vwidth/(2*Math.asin(fov*Math.PI/360));
-
+	//	var r=vwidth/(2*Math.asin(fov*Math.PI/360));
+		var r=pwidth/(2*Math.PI);
 		//x y z float array
 		var view=new Float32Array(vwidth*vheight*3);	
-		var tk=vwidth/(2*Math.tan(fov*Math.PI/360))+0.5;
+		var tk=-r;
 		var ti=0,tj=0;
 		
 		for(i=0;i!=vheight;++i)
@@ -130,34 +206,34 @@
 				{
 					uMax=r*Math.atan(x/z);
 				}
-				u=r*Math.atan(x/z);
-				v=r*Math.atan(y/Math.sqrt(x*x+z*z));
-				if(z>0)
+				
+				if(z>=0)
 				{ 
-					u+=pwidth/2;
+					u=r*Math.acos(x/Math.sqrt(z*z+x*x));
+					v=r*(Math.PI/2-Math.atan(y/Math.sqrt(x*x+z*z)));
 				
 				}
 				else if(z<0)
 				{
-					if(uMax!=0)
-					{
-						u=uMax+(uMax+u);
-						u+=pwidth/2;
-					}
-					
+					u=r*(Math.PI*2-Math.acos(x/Math.sqrt(z*z+x*x)));
+					v=r*(Math.PI/2-Math.atan(y/Math.sqrt(x*x+z*z)));
 						
 				}
 				u--;
 				
 				v++;
-				v=pheight/2-v;
+			//	v=pheight/2-v;
 				if(v>=pheight)
 				{
 					v=pheight-1;
 				}
 				if(u>=pwidth)
 				{
-					u=pwidth-1;
+					u-=pwidth;
+				}
+				if(u<0)
+				{
+					u+=pwidth;
 				}
 				panoPos[(i*vwidth+j)*2+0]=u;
 				panoPos[(i*vwidth+j)*2+1]=v;
@@ -197,20 +273,21 @@
 	}	
 	$.fn.panorama=function(){
 		this.each(function(){
-			
-			var pano_mouse_position_x=0;
-			var pano_mouse_position_y=0;
-			var pano_mouse_delta_x=0;
-			var pano_mouse_delta_y=0;
-			var pano_mouse_down=false;
-			
-			  vwidth=600;
+			 vwidth=600;
 			  vheight=400;
 			  pwidth=0;
 			  pheight=0;
 			 fov=90;
-			 pan=75*Math.PI/180;
-			 tilt=0;
+			 pan=90;
+			 tilt=-90;
+			 
+			var pano_mouse_standard_x=vwidth/2;
+			var pano_mouse_standard_y=vheight/2;
+			var pano_mouse_delta_x=0;
+			var pano_mouse_delta_y=0;
+			var pano_mouse_down=false;
+			
+			 
 			
 			
 			var pano_element=this;
@@ -225,26 +302,57 @@
 				pwidth=panoImg.width;
 				pheight=panoImg.height;
 				srcMat=imread(panoImg);
+				var timebegin=(new Date()).getTime();
+				
 				draw();
-				$(pano_element).bind('mousedown',function(){
+				var timeend=(new Date()).getTime();
+				alert(timeend-timebegin);
+				$(pano_element).bind('mousedown',function(event){
 				pano_mouse_down=true;
-				pano_mouse_position_x=e.clientX;
-				pano_mouse_position_y=e.clientY;
+				
 				$(pano_element).parent().css("cursor","move");
-			});
-			$(pano_element).bind('mouseup',function(){
+				
+				
+				});
+				$(pano_element).bind('mouseup',function(){
 				pano_mouse_down=false;
-				$(pano_element).parent().css("cursor","pointer");
+				$(pano_element).parent().css("cursor","default");
+				
 			});
-			$(pano_element).bind('mousemove',function(e){
+			$(pano_element).bind('mousemove',function(event){
 				if(pano_mouse_down){
-					pano_mouse_delta_x=parseInt(pano_mouse_position_x-e.clientX);
-					pano_mouse_delta_y=parseInt(pano_mouse_position_y=e.clientY);
-					pan+=10*Math.PI/180;
+					pano_mouse_delta_x=pano_mouse_standard_x-event.clientX;
+					pano_mouse_delta_y=pano_mouse_standard_y-event.clientY;
+					
+					if(pano_mouse_delta_x >0)
+					{
+						pan+=1;
+						
+					}
+					else if(pano_mouse_delta_x<0)
+					{
+						pan-=1;
+					}
+					if(pano_mouse_delta_y >0)
+					{
+						tilt+=1;
+						if(tilt>90)
+							tilt=90;
+					}
+					else if(pano_mouse_delta_y<0)
+					{
+						tilt-=1;
+						if(tilt<-90)
+							{
+								tilt=-90;
+							}
+					}
+					
+					draw();
 				}
 			});
 			}
-			panoImg.src="imgs\\village.jpg";
+			panoImg.src="imgs\\v2.jpg";
 			
 		
 		
