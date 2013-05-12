@@ -40,17 +40,19 @@ onmessage=function(event)
 	var data=event.data;
 	var tilt=data.tilt;
 	var pan=data.pan;
-	var fov=data.fov;
+//	var fov=data.fov;
 	var view=data.view;
-	var vwidth=parseInt(data.width);
-	var vheight=parseInt(data.height);
+	var vwidth=parseInt(data.vwidth);
+	var vheight=parseInt(data.vheight);
 	var pwidth=parseInt(data.pwidth);
 	var pheight=parseInt(data.pheight);
+
 	var r=data.radius;
 	var ti=0,tj=0,tk=0;
 	var x=0,y=0,z=0;
 	var u=0,v=0;
 	var pano=new Uint16Array(vheight*vwidth*2);
+	
 	var mt=setMatrix(tilt,pan);
 	for(var i=0;i!=vheight;++i)
 	{
