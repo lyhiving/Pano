@@ -31,7 +31,7 @@ function setMatrix(_tilt,_pan)
 					
 			}
 		}
-		return mt
+		return mt;
 
 }
 
@@ -100,4 +100,4 @@ onmessage=function(event)
 		}
 	}
 	self.postMessage({pano:pano},[pano.buffer]);
-}
+};
