@@ -19,8 +19,13 @@
 	var worker;
 
 	var steps = 7;
-	var hotspots = [];
 
+	var panos = [
+			new PANO("v2", "imgs\\v2.jpg", [ new HS(500, 200, 400, 400, "v2",
+					"imgs\\v1.jpg") ], 90, 0, 90),
+			new PANO("v1", "imgs\\v1.jpg", null, 90, 0, 90),
+			new PANO("v3", "imgs\\v3.jpg", null, 90, 0, 90) ];
+	var panoImg;
 	function Mat(_row, _col, _data, _buffer) {
 		this.row = _row || 0;
 		this.col = _col || 0;
@@ -30,6 +35,28 @@
 		_data && this.data.set(_data);
 		this.bytes = 1;
 		this.type = "CV_RGBA";
+	}
+	function HS(_x, _y, _width, _height, _dstId, _dst) {
+		this.x = _x;
+		this.y = _y;
+		this.width = _width;
+		this.height = _height;
+
+		this.dstId = _dstId;
+		this.dst = _dst;
+	}
+
+	function PANO(_panoId, _src, _hsArray, _pan, _tilt, _fov) {
+		this.id = _panoId;
+		this.src = _src;
+		this.hsArr = _hsArray;
+		this.pan = _pan;
+		this.tilt = _tilt;
+		this.fov = _fov;
+	}
+	function LKIMG(_img, _loaded) {
+		this.img = _img;
+		this.loaded = _loaded;
 	}
 	function imread(_image) {
 		var width = _image.width;
@@ -85,47 +112,23 @@
 		imageData.data.set(_imgMat.data);
 		return imageData;
 	}
-	function HS(_x, _y, _width, _height, _panoId, _dstId, _dst) {
-		this.x = _x;
-		this.y = _y;
-		this.width = _width;
-		this.height = _height;
-		this.panoId = _panoId;
-		this.dstId = _dstId;
-		this.dst = _dst;
-	}
+
 	function draw() {
 		// transform view position to pan tilt angle;
 		vwidth = parseInt(2 * r * Math.tan(fov * Math.PI / 360));
 		vheight = parseInt(vwidth * 2 / 3);
-		var i = 0, j = 0, k = 0;
 
-		var view;
-
-		view = new Float32Array(vheight * vwidth * 3);
-		for (i = 0; i != vheight; ++i) {
-
-			for (j = 0; j != vwidth; ++j) {
-
-				view[(i * vwidth + j) * 3] = j - (vwidth / 2);
-
-				view[(i * vwidth + j) * 3 + 1] = -(i + k * vheight)
-						+ (vheight / 2) - 1;
-				view[(i * vwidth + j) * 3 + 2] = -r;
-
-			}
-		}
 		worker.postMessage({
 			tilt : tilt,
 			pan : pan,
 			// fov : fov,
-			view : view,
+			// view : view,
 			vheight : vheight,
 			vwidth : vwidth,
 			radius : r,
 			pwidth : pwidth,
 			pheight : pheight
-		}, [ view.buffer ]);
+		}/* ,[view.buffer] */);
 
 	}
 
@@ -158,6 +161,7 @@
 					u = parseInt(k * Sx);
 					v = parseInt(j * Sy);
 					for (l = 0; l != 4; ++l) {
+
 						zoomData[(j * cwidth + k) * 4 + l] = imgData[(v
 								* vwidth + u)
 								* 4 + l];
@@ -175,7 +179,7 @@
 		};
 	}
 
-	function checkHS(_x, _y) {
+	function checkHS(_x, _y, _linkImgs) {
 		var mt = setMatrix(tilt, pan);
 
 		var Sx = vwidth / cwidth;
@@ -210,16 +214,47 @@
 		u = parseInt(u);
 		v = parseInt(v);
 		console.log("u:" + u + "v:" + v + "\n");
-		for ( var i in hotspots) {
-			var hs = hotspots[i];
-			if (hs.panoId == panoImg.id) {
-				if (u > hs.x && u < (hs.x + hs.width) && v > hs.y
-						&& v < (hs.y + hs.height)) {
-					panoImg.src = hs.dst;
-					panoImg.id = hs.disId;
+		for ( var i in panos) {
+			var pano = panos[i];
+			if (pano.id = panoImg.id) {
+				var hsarr = pano.hsArr;
+				for ( var j in hsarr) {
+					var hs = hsarr[j];
+
+					if (u > hs.x && u < (hs.x + hs.width) && v > hs.y
+							&& v < (hs.y + hs.height)) {
+
+						panoImg.src = hs.dst;
+						panoImg.id = hs.disId;
+
+						break;
+					}
+
 				}
 			}
+
 		}
+	}
+	function linkChange(_img) {
+		var linkWorker = new Workr("hs_compute_task.js");
+
+		var view = new Float32Array(vheight * vwidth * 3);
+		for ( var i = 0; i != vheight; ++i) {
+
+			for ( var j = 0; j != vwidth; ++j) {
+
+				view[(i * vwidth + j) * 3] = j - (vwidth / 2);
+
+				view[(i * vwidth + j) * 3 + 1] = -(i + k * vheight)
+						+ (vheight / 2) - 1;
+				view[(i * vwidth + j) * 3 + 2] = -r;
+
+			}
+		}
+
+		linkWorker.onmessage = function() {
+
+		};
 	}
 	function hemitte() {
 
@@ -238,119 +273,228 @@
 		}
 
 	}
+	function successLoad(i, linkImgs) {
+		linkImgs[i].loaded = true;
+	}
+	function preLoad(arrayOfImages, linkImgs) {
+		for ( var i in arrayOfImages) {
+			var img = new Image();
+			img.src = arrayOfImages[i];
+			img.onload = function() {
+				successLoad(i, linkImgs);
+			}
+			linkImgs.push(new LKIMG(img, false));
+		}
+	}
 	$.fn.panorama = function() {
-		this
-				.each(function() {
-					vwidth = 600;
-					vheight = 400;
-					pwidth = 0;
-					pheight = 0;
-					fov = 90;
-					pan = 90;
-					tilt = 0;
+		this.each(function() {
+			vwidth = 600;
+			vheight = 400;
+			pwidth = 0;
+			pheight = 0;
+			fov = 90;
+			pan = 90;
+			tilt = 0;
 
-					var pano_mouse_position_x = vwidth / 2;
-					var pano_mouse_position_y = vheight / 2;
-					var pano_mouse_delta_x = 0;
-					var pano_mouse_delta_y = 0;
-					var pano_mouse_down = false;
+			var pano_mouse_position_x = vwidth / 2;
+			var pano_mouse_position_y = vheight / 2;
+			var pano_mouse_delta_x = 0;
+			var pano_mouse_delta_y = 0;
+			var pano_mouse_down = false;
 
-					var pano_element = this;
-					cwidth = $(pano_element).width();
-					cheight = $(pano_element).height();
-					canvas = this;
-					context = this.getContext("2d");
+			var pano_element = this;
+			cwidth = $(pano_element).width();
+			cheight = $(pano_element).height();
+			canvas = this;
+			context = this.getContext("2d");
 
-					hotspots.push(new HS(500, 200, 400, 400, "v2", "v1",
-							"imgs\\v1.jpg"));
+			panoImg = new Image();
 
-					panoImg = new Image();
+			panoImg.onload = function() {
+				// timend=(new Date()).getTime();
 
-					panoImg.onload = function() {
-						// timend=(new Date()).getTime();
+				// console.log(timend - timbeg);
+				var arrayOfImgs = [];
+				var linkImgs = [];
+				var currentPano;
+				for ( var i in panos) {
+					if (panos[i].id == panoImg.id) {
+						currentPano = panos[i];
+						break;
+					}
+				}
+				var hsarr = currentPano.hsArr;
+				for (i in hsarr) {
+					arrayOfImgs.push(hsarr[i].dst);
+				}
+				fov = currentPano.fov;
+				pan = currentPano.pan;
+				tilt = currentPano.tilt;
+				// preLoad(arrayOfImgs, linkImgs);
+				pwidth = panoImg.width;
+				pheight = panoImg.height;
+				srcMat = imread(panoImg);
+				r = pwidth / (2 * Math.PI);
 
-						// console.log(timend - timbeg);
-						pwidth = panoImg.width;
-						pheight = panoImg.height;
-						srcMat = imread(panoImg);
-						r = pwidth / (2 * Math.PI);
+				vwidth = parseInt(2 * r * Math.tan(fov * Math.PI / 360));
+				vheight = parseInt(vwidth * 2 / 3);
+				imgMat = new Mat(vheight, vwidth);
 
-						vwidth = parseInt(2 * r * Math.tan(fov * Math.PI / 360));
-						vheight = parseInt(vwidth * 2 / 3);
-						imgMat = new Mat(vheight, vwidth);
+				createWorker();
 
-						createWorker();
+				draw();
 
-						draw();
-
-						$(pano_element).bind('mousedown', function(event) {
-							pano_mouse_down = true;
-							pano_mouse_position_x = event.clientX;
-							pano_mouse_position_y = event.clientY;
-							$(pano_element).parent().css("cursor", "move");
-
-						});
-						$(pano_element).bind('mouseup', function() {
-							pano_mouse_down = false;
-							$(pano_element).parent().css("cursor", "default");
-
-						});
-						$(pano_element)
-								.bind(
-										'mousemove',
-										function(event) {
-											if (pano_mouse_down) {
-												pano_mouse_delta_x = pano_mouse_position_x
-														- event.clientX;
-												pano_mouse_delta_y = pano_mouse_position_y
-														- event.clientY;
-
-												pan += pano_mouse_delta_x / 100;
-
-												tilt += pano_mouse_delta_y / 100;
-												if (tilt > 90)
-													tilt = 90;
-												if (tilt < -90)
-													tilt = -90;
-
-												draw();
-
-											}
-										});
-						$(pano_element).bind(
-								'mousewheel',
-								function(event) {
-									var e = window.event || event;
-									var deta = Math.max(-1, Math.min(1,
-											(e.wheelDelta || -e.detail)));
-									if (deta > 0) {
-										fov /= 1.1;
-										if (fov < 45)
-											fov = 45;
-
-									} else if (deta < 0) {
-										fov *= 1.1;
-										if (fov > 90)
-											fov = 90;
-
-									}
-									draw();
-								});
-						$(pano_element).dblclick(function(event) {
-							console.log("double click");
-
-							checkHS(event.offsetX, event.offsetY);
-						});
-
-					};
-					// timbeg=(new Date()).getTime();
-					panoImg.src = "imgs\\v2.jpg";
-					panoImg.id = "v2";
+				$(pano_element).bind('mousedown', function(event) {
+					pano_mouse_down = true;
+					pano_mouse_position_x = event.clientX;
+					pano_mouse_position_y = event.clientY;
+					$(pano_element).parent().css("cursor", "move");
 
 				});
+				$(pano_element).bind('mouseup', function() {
+					pano_mouse_down = false;
+					$(pano_element).parent().css("cursor", "default");
+
+				});
+				$(pano_element).bind(
+						'mousemove',
+						function(event) {
+							if (pano_mouse_down) {
+								pano_mouse_delta_x = pano_mouse_position_x
+										- event.clientX;
+								pano_mouse_delta_y = pano_mouse_position_y
+										- event.clientY;
+
+								pan += pano_mouse_delta_x / 100;
+
+								tilt += pano_mouse_delta_y / 100;
+								if (tilt > 90)
+									tilt = 90;
+								if (tilt < -90)
+									tilt = -90;
+
+								draw();
+
+							}
+						});
+				$(pano_element).bind(
+						'mousewheel',
+						function(event) {
+							var e = window.event || event;
+							var deta = Math.max(-1, Math.min(1,
+									(e.wheelDelta || -e.detail)));
+							if (deta > 0) {
+								fov /= 1.1;
+								if (fov < 45)
+									fov = 45;
+
+							} else if (deta < 0) {
+								fov *= 1.1;
+								if (fov > 90)
+									fov = 90;
+
+							}
+							draw();
+						});
+				$(pano_element).dblclick(function(event) {
+					console.log("double click");
+
+					checkHS(event.offsetX, event.offsetY, linkImgs);
+				});
+
+			};
+			// timbeg=(new Date()).getTime();
+			panoImg.src = "imgs\\v2.jpg";
+			panoImg.id = "v2";
+
+		});
 
 	};
+
+	var scenes = [];
+	var map;
+
+	function scene(_id, _title, _latlng) {
+		this.id = _id;
+		this.title = _title;
+		this.latlng = _latlng;
+
+	}
+	function updateMarker(marker, i) {
+		// alert(i);
+		google.maps.event.addListener(marker, 'click', function() {
+			var id = scenes[i].id;
+			for ( var j in panos) {
+				var pano = panos[j];
+				if (pano.id == id) {
+					console.log(id);
+					panoImg.src = pano.src;
+					panoImg.id = pano.id;
+					break;
+				}
+			}
+		});
+	}
+
+	function initialize() {
+
+		scenes.push(new scene('v2', '1', new google.maps.LatLng(
+				26.5862820834394, 114.141924977303)), new scene('v1', '2',
+				new google.maps.LatLng(26.5874717808881, 114.141973257065)),
+				new scene('v3', '3', new google.maps.LatLng(26.5824442654713,
+						114.145642518997)));
+
+		var mapOptions = {
+			center : scenes[0].latlng,
+			zoom : 15,
+			mapTypeId : google.maps.MapTypeId.ROADMAP
+		};
+		map = new google.maps.Map(document.getElementById("map_canvas"),
+				mapOptions);
+
+		for ( var i in scenes) {
+
+			var marker = new google.maps.Marker({
+				position : scenes[i].latlng,
+				map : map,
+				title : scenes[i].title,
+			});
+
+			updateMarker(marker, i);
+
+		}
+	}
+	function initializeButtons() {
+		$('img#d').bind('click', function(event) {
+			var x = event.offsetX;
+			var y = event.offsetY;
+			if (x > 15 && x < 31 && y > 28 && y < 62) {
+				pan += 5;
+				draw();
+			}
+			else if (x > 70 && x < 82 && y > 39 && y < 62) {
+				pan -= 5;
+				draw();
+			}
+			else if (x > 38 && x < 60 && y > 15 && y < 30) {
+				tilt += 5;
+				draw();
+			}
+			else if (x > 38 && x < 62 && y > 70 && y < 82) {
+				tilt -= 5;
+				draw();
+			}
+
+		});
+
+	}
 	$('document').ready(function() {
 		$('canvas#c').panorama();
+	});
+	$('document').ready(function() {
+		initialize();
+	});
+	$('document').ready(function() {
+		initializeButtons();
 	});
 })(jQuery);
