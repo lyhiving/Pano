@@ -34,39 +34,42 @@ function setMatrix(_tilt, _pan) {
 }
 
 onmessage = function(event) {
+	
 	var data = event.data;
 	var tilt = data.tilt;
 	var pan = data.pan;
-	// var fov=data.fov;
-	// var view=data.view;
+	
 	var vwidth = parseInt(data.vwidth);
 	var vheight = parseInt(data.vheight);
 	var pwidth = parseInt(data.pwidth);
 	var pheight = parseInt(data.pheight);
+	var index=parseInt(data.index);
+	var jobCount=parseInt(data.jobCount);
 
-	var i = 0, j = 0, k = 0;
+	var i = 0, j = 0;
 	var view;
 	var r = data.radius;
 	var ti = 0, tj = 0, tk = 0;
 	var x = 0, y = 0, z = 0;
 	var u = 0, v = 0;
-	var pano = new Uint16Array(vheight * vwidth * 2);
+	var subVH=parseInt(vheight/jobCount);
+	var pano = new Uint16Array(subVH * vwidth * 2);
 
-	view = new Float32Array(vheight * vwidth * 3);
-	for (i = 0; i != vheight; ++i) {
+	view = new Float32Array(subVH * vwidth * 3);
+	for (i = 0; i != subVH; ++i) {
 
 		for (j = 0; j != vwidth; ++j) {
 
 			view[(i * vwidth + j) * 3] = j - (vwidth / 2);
 
-			view[(i * vwidth + j) * 3 + 1] = -i + (vheight / 2) - 1;
+			view[(i * vwidth + j) * 3 + 1] = -(i+index*subVH) + (vheight / 2) - 1;
 			view[(i * vwidth + j) * 3 + 2] = -r;
 
 		}
 	}
 	var mt = setMatrix(tilt, pan);
 
-	for (i = 0; i != vheight; ++i) {
+	for (i = 0; i != subVH; ++i) {
 		for (j = 0; j != vwidth; ++j) {
 
 			ti = view[(i * vwidth + j) * 3 + 0];
@@ -103,4 +106,5 @@ onmessage = function(event) {
 	self.postMessage({
 		pano : pano
 	}, [ pano.buffer ]);
+	
 };
