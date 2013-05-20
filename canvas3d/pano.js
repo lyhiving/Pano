@@ -4,7 +4,9 @@
 	var t = {};
 
 	var p = [];
-var loaded=3;
+	var loaded = 3;
+	var linked = false;
+
 	function pano(_src, _id, _title, _latlng) {
 		this.src = _src;
 		this.id = _id;
@@ -29,7 +31,7 @@ var loaded=3;
 			canvas.width = panoImg.width;
 			canvas.height = panoImg.height;
 			context.drawImage(panoImg, 0, 0);
-			loaded --;
+			loaded--;
 
 			pa.imgData = context.getImageData(0, 0, panoImg.width,
 					panoImg.height).data;
@@ -54,12 +56,19 @@ var loaded=3;
 		this.pwidth = this.currentPano.pwidth;
 		this.pheight = this.currentPano.pheight;
 
+		this.steps = 7;
+
 		this.img = new Uint8ClampedArray(_cheight * _cwidth * 4);
 
 		var ga = this;
 		this.worker = new Worker("compute_task.js");
 
 		this.worker.onmessage = function(event) {
+			if (linked) {
+				var img1 = new Uint8ClampedArray(ga.cheight *ga.cwidth*4);
+				img1.set(ga.img);
+
+			}
 
 			var fov = ga.fov;
 			var r = ga.r;
@@ -90,6 +99,7 @@ var loaded=3;
 			}
 			var Sx = vwidth / cwidth;
 			var Sy = vheight / cheight;
+
 			var img = ga.img;
 			for (j = 0; j != cheight; ++j) {
 				for (k = 0; k != cwidth; ++k) {
@@ -102,14 +112,41 @@ var loaded=3;
 					}
 				}
 			}
+			if (linked) {
+				var step = 0;
+				(function linkAnimation() {
+					if (step != ga.steps) {
+						window.webkitRequestAnimationFrame(linkAnimation);
+					}
+					var tmpImg = new Uint8ClampedArray(cheight * cwidth * 4);
 
-			context.clearRect(0, 0, cwidth, cheight);
-			canvas.width = cwidth;
-			canvas.height = cheight;
-			var imageData = context.createImageData(cwidth, cheight);
-			imageData.data.set(img);
-			context.putImageData(imageData, 0, 0);
+					for ( var i = 0; i != cheight; ++i) {
+						for ( var j = 0; j != cwidth; ++j) {
+							for(var k=0;k!=4;++k)
+								{
+								tmpImg[(i * cwidth + j)*4+k] =img1[(i * cwidth + j)*4+k]+
+								step*(img[(i*cwidth+j)*4+k]-img1[(i*cwidth+j)*4+k])/ga.steps;
+								}
+						}
+					}
+					step++;
+					context.clearRect(0, 0, cwidth, cheight);
+					canvas.width = cwidth;
+					canvas.height = cheight;
+					var imageData = context.createImageData(cwidth, cheight);
+					imageData.data.set(tmpImg);
+					context.putImageData(imageData, 0, 0);
+				})();
 
+				linked = false;
+			} else {
+				context.clearRect(0, 0, cwidth, cheight);
+				canvas.width = cwidth;
+				canvas.height = cheight;
+				var imageData = context.createImageData(cwidth, cheight);
+				imageData.data.set(img);
+				context.putImageData(imageData, 0, 0);
+			}
 			// console.log((new Date()).getTime()-beg);
 
 		};
@@ -174,7 +211,7 @@ var loaded=3;
 	function execute() {
 
 		if (!loaded) {
-			console.log("loaded:"+loaded);
+			console.log("loaded:" + loaded);
 			window.clearInterval(t);
 
 			var cwidth = 600;
@@ -223,13 +260,16 @@ var loaded=3;
 
 		}
 	}
-	galaxy.prototype.linkChange=function()
-	{
-		
-	};
+
 	function updateMarker(_marker, _i, _ga) {
 		google.maps.event.addListener(_marker, 'click', function() {
-			_ga.currentPano = _ga.panoArray[_i];
+			if(_ga.currentPano != _ga.panoArray[_i])
+				{
+					_ga.currentPano=_ga.panoArray[_i];
+					linked = true;
+					_ga.draw();
+				}
+			
 		});
 	}
 	galaxy.prototype.loadMap = function() {
